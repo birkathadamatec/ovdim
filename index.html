@@ -1,306 +1,1942 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html dir="rtl" lang="he">
 <head>
-<meta charset="UTF-8">
-<title>ניהול עובדים</title>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ניהול העסקת עובדים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4ff;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --primary: #3b5bdb;
+      --primary-light: #748ffc;
+      --primary-dark: #2f4ac3;
+      --success: #0d9488;
+      --danger: #e11d48;
+      --warning: #d97706;
+      --shadow-sm: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+      --shadow: 0 4px 16px rgba(59,91,219,.08), 0 1px 4px rgba(15,23,42,.06);
+      --shadow-lg: 0 20px 60px rgba(59,91,219,.14), 0 4px 16px rgba(15,23,42,.06);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
 
-<style>
-body{
-  font-family:Arial;
-  margin:0;
-  background:#f5f7fb;
-}
+    *, *::before, *::after { box-sizing: border-box; }
 
-.container{
-  max-width:1200px;
-  margin:auto;
-  padding:20px;
-}
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Heebo', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100%;
+      font-size: 15px;
+      line-height: 1.6;
+    }
 
-h1{
-  margin-bottom:20px;
-}
+    body {
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(116,143,252,.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(99,179,237,.12) 0%, transparent 45%),
+        var(--bg);
+      padding: 20px 16px 40px;
+    }
 
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
-}
+    .app {
+      max-width: 1340px;
+      margin: 0 auto;
+    }
 
-.tab{
-  padding:10px 15px;
-  background:white;
-  border-radius:8px;
-  cursor:pointer;
-}
+    /* ===== LOADING ===== */
+    .loader {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 80vh;
+      gap: 18px;
+    }
 
-.tab.active{
-  background:#2563eb;
-  color:white;
-}
+    .loader-text {
+      font-size: 16px;
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: .3px;
+    }
 
-.card{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:15px;
-}
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(59,91,219,.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
 
-input,select{
-  padding:8px;
-  margin:5px 0;
-  width:100%;
-}
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
 
-button{
-  padding:10px;
-  border:none;
-  background:#2563eb;
-  color:white;
-  border-radius:6px;
-  cursor:pointer;
-}
+    /* ===== HERO ===== */
+    .hero {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 55%, var(--primary-light) 100%);
+      border-radius: 24px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      animation: fadeUp .5s ease;
+    }
 
-button.danger{background:#dc2626}
-button.gray{background:#64748b}
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1.5' fill='rgba(255,255,255,.08)'/%3E%3C/svg%3E");
+    }
 
-table{
-  width:100%;
-  border-collapse:collapse;
-}
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -60px;
+      left: -60px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(255,255,255,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
 
-td,th{
-  padding:8px;
-  border-bottom:1px solid #ddd;
-}
+    .hero-inner {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
 
-.search{
-  margin-bottom:10px;
-}
+    .hero-text .title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 6px;
+      letter-spacing: -.3px;
+    }
 
-.popup{
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.4);
-  display:none;
-  align-items:center;
-  justify-content:center;
-}
+    .hero-text .subtitle {
+      color: rgba(255,255,255,.72);
+      margin: 0;
+      font-size: 14px;
+      font-weight: 400;
+    }
 
-.popup-content{
-  background:white;
-  padding:20px;
-  border-radius:10px;
-  width:300px;
-}
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-</style>
+    /* ===== TABS ===== */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+      animation: fadeUp .5s ease .1s both;
+    }
+
+    .tab {
+      border: 1.5px solid transparent;
+      background: var(--card);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      box-shadow: var(--shadow-sm);
+      transition: all .2s ease;
+      white-space: nowrap;
+    }
+
+    .tab:hover {
+      color: var(--primary);
+      border-color: rgba(59,91,219,.3);
+      transform: translateY(-1px);
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 4px 14px rgba(59,91,219,.35);
+    }
+
+    /* ===== PAGES ===== */
+    .page { display: none; }
+    .page.active { display: block; animation: fadeUp .3s ease; }
+
+    /* ===== GRID ===== */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-8  { grid-column: span 8; }
+    .col-6  { grid-column: span 6; }
+    .col-4  { grid-column: span 4; }
+    .col-3  { grid-column: span 3; }
+
+    @media (max-width: 1100px) {
+      .col-8, .col-6, .col-4, .col-3 { grid-column: span 12; }
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(59,91,219,.07);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -.2px;
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    /* ===== STATS ===== */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .stat {
+      background: linear-gradient(145deg, #f8faff 0%, #eef3ff 100%);
+      border: 1px solid rgba(59,91,219,.12);
+      border-radius: 12px;
+      padding: 16px;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .stat:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(59,91,219,.1);
+    }
+
+    .stat .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .stat .value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      letter-spacing: -.5px;
+    }
+
+    /* ===== FORMS ===== */
+    form {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .field          { grid-column: span 6; display: flex; flex-direction: column; gap: 6px; }
+    .field.full     { grid-column: span 12; }
+    .field.third    { grid-column: span 4; }
+    .field.quarter  { grid-column: span 3; }
+
+    @media (max-width: 900px) {
+      .field, .field.full, .field.third, .field.quarter { grid-column: span 12; }
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      background: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,91,219,.12);
+    }
+
+    input::placeholder { color: #adb5c7; }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(59,91,219,.3);
+    }
+    .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 6px 20px rgba(59,91,219,.4); }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1.5px solid var(--line);
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(13,148,136,.25);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(225,29,72,.22);
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(245,158,11,.22);
+    }
+
+    .btn-white {
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,.3);
+      backdrop-filter: blur(4px);
+    }
+    .btn-white:hover { background: rgba(255,255,255,.25); }
+
+    .btn-sm {
+      padding: 7px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ===== TABLE ===== */
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 820px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      text-align: right;
+      vertical-align: middle;
+      font-size: 13.5px;
+    }
+
+    th {
+      background: #f8faff;
+      color: #3b5bdb;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      border-bottom: 1.5px solid rgba(59,91,219,.1);
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: #f8faff; }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    .badge.success { background: #d1fae5; color: #065f46; }
+    .badge.warning { background: #fef3c7; color: #92400e; }
+    .badge.danger  { background: #ffe4e6; color: #9f1239; }
+    .badge.info    { background: #dbeafe; color: #1e40af; }
+
+    /* ===== SECTION TITLE ===== */
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .section-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ===== TOOLBAR ===== */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding: 14px;
+      background: #f8faff;
+      border-radius: 12px;
+      border: 1px solid rgba(59,91,219,.07);
+    }
+
+    .mini-fields {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .field-mini { min-width: 160px; }
+
+    .field-mini label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .field-mini input,
+    .field-mini select {
+      padding: 8px 11px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .empty::before {
+      content: '📭';
+      display: block;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed;
+      left: 20px;
+      bottom: 24px;
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 40px rgba(15,23,42,.14);
+      padding: 13px 18px;
+      border-radius: 14px;
+      z-index: 9999;
+      min-width: 240px;
+      max-width: 360px;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all .28s cubic-bezier(.34,1.56,.64,1);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-right: 4px solid var(--success); }
+    .toast.error   { border-right: 4px solid var(--danger); }
+
+    /* ===== MISC ===== */
+    .muted { color: var(--muted); }
+    .inline-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .danger-text  { color: var(--danger); font-weight: 700; }
+    .success-text { color: var(--success); font-weight: 700; }
+    .warning-text { color: var(--warning); font-weight: 700; }
+    .hidden { display: none !important; }
+
+    /* Divider inside card */
+    .card-sep {
+      height: 1px;
+      background: var(--line);
+      margin: 16px 0;
+    }
+
+    /* Settings info box */
+    .info-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 13.5px;
+      color: #78350f;
+      line-height: 1.8;
+    }
+
+    /* Dashboard employee table balance coloring */
+    td.balance-positive { color: #b45309; font-weight: 700; }
+    td.balance-settled  { color: #065f46; font-weight: 700; }
+
+    @media (max-width: 640px) {
+      body { padding: 12px 10px 30px; }
+      .hero { padding: 20px 18px; border-radius: 18px; }
+      .hero-text .title { font-size: 20px; }
+      .tabs { gap: 5px; }
+      .tab { padding: 8px 12px; font-size: 13px; }
+      .card { padding: 16px; }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="app">
 
-<div class="container">
+    <!-- Loading -->
+    <div id="loading" class="loader">
+      <div class="spinner"></div>
+      <div class="loader-text">טוען את המערכת...</div>
+    </div>
 
-<h1>ניהול עובדים</h1>
+    <!-- Main Content -->
+    <div id="appContent" class="hidden">
 
-<div class="tabs">
-  <div class="tab active" onclick="openTab('dashboard')">דשבורד</div>
-  <div class="tab" onclick="openTab('employees')">עובדים</div>
-  <div class="tab" onclick="openTab('work')">רישומים</div>
-</div>
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-inner">
+          <div class="hero-text">
+            <h1 class="title" id="appTitle">מערכת ניהול העסקת עובדים</h1>
+            <p class="subtitle">עובדים · סוגי עבודות · תעריפים · רישומי עבודה · תשלומים · דשבורד</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-white" onclick="refreshAll()">↻ רענון</button>
+            <button class="btn btn-primary" style="background:#fff;color:var(--primary);" onclick="openTab('dashboard')">דשבורד</button>
+          </div>
+        </div>
+      </div>
 
-<div id="dashboard" class="page"></div>
-<div id="employees" class="page" style="display:none"></div>
-<div id="work" class="page" style="display:none"></div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="dashboard" onclick="openTab('dashboard')">📊 דשבורד</button>
+        <button class="tab" data-tab="employees" onclick="openTab('employees')">👷 עובדים</button>
+        <button class="tab" data-tab="worktypes" onclick="openTab('worktypes')">🔧 סוגי עבודות</button>
+        <button class="tab" data-tab="rates" onclick="openTab('rates')">💰 תעריפים</button>
+        <button class="tab" data-tab="worklogs" onclick="openTab('worklogs')">📋 רישומי עבודה</button>
+        <button class="tab" data-tab="payments" onclick="openTab('payments')">💳 תשלומים</button>
+        <button class="tab" data-tab="settings" onclick="openTab('settings')">⚙️ הגדרות</button>
+      </div>
 
-</div>
+      <!-- ===== דשבורד ===== -->
+      <section id="page-dashboard" class="page active">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">
+            <div>
+              <h2>סיכום כללי</h2>
+              <p>תמונת מצב אמיתית אחרי חישוב עבודה ותשלומים.</p>
+            </div>
+          </div>
 
-<div class="popup" id="popup">
-  <div class="popup-content" id="popupContent"></div>
-</div>
+          <div class="toolbar">
+            <div class="mini-fields">
+              <div class="field-mini">
+                <label>עובד</label>
+                <select id="dashboardEmployeeFilter"></select>
+              </div>
+              <div class="field-mini">
+                <label>מתאריך</label>
+                <input type="date" id="dashboardDateFrom">
+              </div>
+              <div class="field-mini">
+                <label>עד תאריך</label>
+                <input type="date" id="dashboardDateTo">
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="loadDashboard()">סנן</button>
+              <button class="btn btn-secondary" onclick="resetDashboardFilters()">נקה</button>
+            </div>
+          </div>
 
-<script>
+          <div class="stats" id="dashboardStats"></div>
+        </div>
 
-const API="https://script.google.com/macros/s/AKfycbx4t__5Rrf6ChX-JJYHSmZQ_4KanN03uTBayyRvG3G0hT6texwkrVCJDPkxoGzE5vRaZg/exec";
+        <div class="card">
+          <div class="section-title">
+            <div>
+              <h2>יתרה לפי עובד</h2>
+              <p>רווח מצטבר, תשלומים שבוצעו, ויתרה פתוחה לכל עובד.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>עובד</th>
+                  <th>סה״כ הרוויח</th>
+                  <th>סה״כ שולם</th>
+                  <th>יתרה</th>
+                  <th>סטטוס</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardEmployeesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-let DATA={};
+      <!-- ===== עובדים ===== -->
+      <section id="page-employees" class="page">
+        <div class="grid">
+          <div class="col-4">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הוספה / עריכת עובד</h2>
+                  <p>יצירת עובד חדש או עדכון קיים.</p>
+                </div>
+              </div>
+              <form id="employeeForm">
+                <input type="hidden" id="employeeId">
+                <div class="field full">
+                  <label>שם העובד</label>
+                  <input type="text" id="employeeName" placeholder="לדוגמה: יעקב כהן">
+                </div>
+                <div class="field full">
+                  <label>פעיל?</label>
+                  <select id="employeeActive">
+                    <option value="true">כן</option>
+                    <option value="false">לא</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>הערות</label>
+                  <textarea id="employeeNotes" placeholder="הערות כלליות..."></textarea>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור עובד</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetEmployeeForm()">נקה</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-async function api(fn,payload={}){
-  let r=await fetch(API,{
-    method:"POST",
-    body:JSON.stringify({function:fn,payload})
-  });
-  let j=await r.json();
-  if(j.error) throw j.error;
-  return j.result;
-}
+          <div class="col-8">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>רשימת עובדים</h2>
+                  <p>עריכה, מחיקה או שינוי סטטוס ישירות מהטבלה.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>שם העובד</th>
+                      <th>פעיל</th>
+                      <th>הערות</th>
+                      <th>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody id="employeesTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-async function load(){
-  DATA=await api("getInitialData");
-  renderAll();
-}
+      <!-- ===== סוגי עבודות ===== -->
+      <section id="page-worktypes" class="page">
+        <div class="grid">
+          <div class="col-4">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הוספה / עריכת סוג עבודה</h2>
+                  <p>שם עבודה ושיטת תשלום.</p>
+                </div>
+              </div>
+              <form id="workTypeForm">
+                <input type="hidden" id="workTypeId">
+                <div class="field full">
+                  <label>שם סוג העבודה</label>
+                  <input type="text" id="workTypeName" placeholder="לדוגמה: אריזת חלות">
+                </div>
+                <div class="field full">
+                  <label>שיטת תשלום</label>
+                  <select id="workTypePaymentMethod"></select>
+                </div>
+                <div class="field full">
+                  <label>פעיל?</label>
+                  <select id="workTypeActive">
+                    <option value="true">כן</option>
+                    <option value="false">לא</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>הערות</label>
+                  <textarea id="workTypeNotes" placeholder="הערות על סוג העבודה..."></textarea>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetWorkTypeForm()">נקה</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-function renderAll(){
-  renderDashboard();
-  renderEmployees();
-  renderWork();
-}
+          <div class="col-8">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>רשימת סוגי עבודות</h2>
+                  <p>כולל התעריף הנוכחי לפי תאריך היום.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>שם עבודה</th>
+                      <th>שיטת תשלום</th>
+                      <th>תעריף נוכחי</th>
+                      <th>פעיל</th>
+                      <th>הערות</th>
+                      <th>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody id="workTypesTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-function openTab(name){
-  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
-  document.getElementById(name).style.display='block';
+      <!-- ===== תעריפים ===== -->
+      <section id="page-rates" class="page">
+        <div class="grid">
+          <div class="col-4">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הוספה / עריכת תעריף</h2>
+                  <p>היסטוריה לפי תאריכי תוקף.</p>
+                </div>
+              </div>
+              <form id="rateForm">
+                <input type="hidden" id="rateId">
+                <div class="field full">
+                  <label>סוג עבודה</label>
+                  <select id="rateWorkTypeId"></select>
+                </div>
+                <div class="field full">
+                  <label>תעריף</label>
+                  <input type="number" step="0.01" id="rateValue" placeholder="לדוגמה: 12.5">
+                </div>
+                <div class="field">
+                  <label>מתאריך</label>
+                  <input type="date" id="rateEffectiveFrom">
+                </div>
+                <div class="field">
+                  <label>עד תאריך</label>
+                  <input type="date" id="rateEffectiveTo">
+                </div>
+                <div class="field full">
+                  <label>הערות</label>
+                  <textarea id="rateNotes" placeholder="לדוגמה: תעריף חדש מחודש מאי"></textarea>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור תעריף</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetRateForm()">נקה</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
-}
+          <div class="col-8">
+            <div class="card">
+              <div class="toolbar">
+                <div class="mini-fields">
+                  <div class="field-mini">
+                    <label>סינון לפי סוג עבודה</label>
+                    <select id="rateFilterWorkType"></select>
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-primary" onclick="loadRates()">סנן</button>
+                  <button class="btn btn-secondary" onclick="resetRateFilter()">נקה</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>סוג עבודה</th>
+                      <th>תעריף</th>
+                      <th>מתאריך</th>
+                      <th>עד תאריך</th>
+                      <th>הערות</th>
+                      <th>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ratesTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-/* דשבורד */
+      <!-- ===== רישומי עבודה ===== -->
+      <section id="page-worklogs" class="page">
+        <div class="grid">
+          <div class="col-4">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הוספה / עריכת רישום</h2>
+                  <p>הסכום מחושב לפי תעריף תקף בתאריך.</p>
+                </div>
+              </div>
+              <form id="workLogForm">
+                <input type="hidden" id="logId">
+                <div class="field full">
+                  <label>תאריך</label>
+                  <input type="date" id="logDate">
+                </div>
+                <div class="field full">
+                  <label>עובד</label>
+                  <select id="logEmployeeId"></select>
+                </div>
+                <div class="field full">
+                  <label>סוג עבודה</label>
+                  <select id="logWorkTypeId" onchange="toggleWorkLogInputMode()"></select>
+                  <div class="inline-note" id="workLogMethodNote"></div>
+                </div>
+                <div class="field full" id="quantityField">
+                  <label>כמות</label>
+                  <input type="number" step="0.01" id="logQuantity" placeholder="לדוגמה: 10">
+                </div>
+                <div class="field full hidden" id="timeField">
+                  <label>זמן עבודה (שעות:דקות)</label>
+                  <input type="text" id="logTimeHHMM" placeholder="לדוגמה: 1:30">
+                </div>
+                <div class="field full hidden" id="fixedField">
+                  <label>תשלום קבוע</label>
+                  <input type="text" value="הסכום יחושב לפי התעריף הקבוע" disabled>
+                </div>
+                <div class="field full">
+                  <label>סטטוס</label>
+                  <select id="logStatus">
+                    <option value="active">פעיל</option>
+                    <option value="canceled">מבוטל</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>הערות</label>
+                  <textarea id="logNotes" placeholder="פירוט הרישום..."></textarea>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור רישום</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetWorkLogForm()">נקה</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-function renderDashboard(){
-  let html='<div class="card">';
-  html+='<h3>יתרות עובדים</h3>';
+          <div class="col-8">
+            <div class="card">
+              <div class="toolbar">
+                <div class="mini-fields">
+                  <div class="field-mini">
+                    <label>עובד</label>
+                    <select id="workLogFilterEmployee"></select>
+                  </div>
+                  <div class="field-mini">
+                    <label>סוג עבודה</label>
+                    <select id="workLogFilterWorkType"></select>
+                  </div>
+                  <div class="field-mini">
+                    <label>סטטוס</label>
+                    <select id="workLogFilterStatus">
+                      <option value="">הכל</option>
+                      <option value="active">פעיל</option>
+                      <option value="canceled">מבוטל</option>
+                    </select>
+                  </div>
+                  <div class="field-mini">
+                    <label>מתאריך</label>
+                    <input type="date" id="workLogDateFrom">
+                  </div>
+                  <div class="field-mini">
+                    <label>עד תאריך</label>
+                    <input type="date" id="workLogDateTo">
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-primary" onclick="loadWorkLogs()">סנן</button>
+                  <button class="btn btn-secondary" onclick="resetWorkLogFilters()">נקה</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>תאריך</th>
+                      <th>עובד</th>
+                      <th>סוג עבודה</th>
+                      <th>כמות</th>
+                      <th>זמן</th>
+                      <th>תעריף</th>
+                      <th>סה״כ</th>
+                      <th>סטטוס</th>
+                      <th>הערות</th>
+                      <th>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody id="workLogsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  DATA.dashboard.byEmployee.forEach(e=>{
-    html+=`<div>${e.employeeName} - ${e.balance} ₪</div>`;
-  });
+      <!-- ===== תשלומים ===== -->
+      <section id="page-payments" class="page">
+        <div class="grid">
+          <div class="col-4">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הוספה / עריכת תשלום</h2>
+                  <p>מקדמות ותשלומים לעובדים.</p>
+                </div>
+              </div>
+              <form id="paymentForm">
+                <input type="hidden" id="paymentId">
+                <div class="field full">
+                  <label>תאריך</label>
+                  <input type="date" id="paymentDate">
+                </div>
+                <div class="field full">
+                  <label>עובד</label>
+                  <select id="paymentEmployeeId"></select>
+                </div>
+                <div class="field full">
+                  <label>סכום</label>
+                  <input type="number" step="0.01" id="paymentAmount" placeholder="לדוגמה: 500">
+                </div>
+                <div class="field full">
+                  <label>הערות</label>
+                  <textarea id="paymentNotes" placeholder="מקדמה, תשלום שבועי וכו׳..."></textarea>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור תשלום</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetPaymentForm()">נקה</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-  html+='</div>';
+          <div class="col-8">
+            <div class="card">
+              <div class="toolbar">
+                <div class="mini-fields">
+                  <div class="field-mini">
+                    <label>עובד</label>
+                    <select id="paymentFilterEmployee"></select>
+                  </div>
+                  <div class="field-mini">
+                    <label>מתאריך</label>
+                    <input type="date" id="paymentDateFrom">
+                  </div>
+                  <div class="field-mini">
+                    <label>עד תאריך</label>
+                    <input type="date" id="paymentDateTo">
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-primary" onclick="loadPayments()">סנן</button>
+                  <button class="btn btn-secondary" onclick="resetPaymentFilters()">נקה</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>תאריך</th>
+                      <th>עובד</th>
+                      <th>סכום</th>
+                      <th>הערות</th>
+                      <th>פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody id="paymentsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  html+='<canvas id="chart" height="100"></canvas>';
+      <!-- ===== הגדרות ===== -->
+      <section id="page-settings" class="page">
+        <div class="grid">
+          <div class="col-6">
+            <div class="card">
+              <div class="section-title">
+                <div>
+                  <h2>הגדרות מערכת</h2>
+                  <p>הפעל/השבת שיטות תשלום בלי למחוק נתונים קיימים.</p>
+                </div>
+              </div>
+              <form id="settingsForm">
+                <div class="field full">
+                  <label>כותרת המערכת</label>
+                  <input type="text" id="settingsAppTitle">
+                </div>
+                <div class="field full">
+                  <label>תשלום לפי כמות / מוצר</label>
+                  <select id="settingsEnableUnit">
+                    <option value="true">מופעל</option>
+                    <option value="false">כבוי</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>תשלום לפי שעות</label>
+                  <select id="settingsEnableHour">
+                    <option value="true">מופעל</option>
+                    <option value="false">כבוי</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>תשלום קבוע</label>
+                  <select id="settingsEnableFixed">
+                    <option value="true">מופעל</option>
+                    <option value="false">כבוי</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">שמור הגדרות</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
-  document.getElementById("dashboard").innerHTML=html;
+          <div class="col-6">
+            <div class="card">
+              <h2>הערה חשובה</h2>
+              <div class="info-box" style="margin-top:12px;">
+                <strong>לפני מחיקת עובד או סוג עבודה:</strong><br>
+                מחיקה עלולה לפגוע בנתונים היסטוריים. מומלץ להשתמש ב"לא פעיל" במקום מחיקה.<br><br>
+                <strong>רישומי עבודה ותשלומים:</strong><br>
+                ניתן למחוק בחופשיות כשנפלה טעות — אין השפעה על היסטוריה אחרת.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  drawChart();
-}
+    </div><!-- /appContent -->
+  </div><!-- /app -->
 
-function drawChart(){
-  let canvas=document.getElementById("chart");
-  if(!canvas) return;
+  <div id="toast" class="toast"></div>
 
-  let ctx=canvas.getContext("2d");
+  <script>
+    /* ====================================================
+       CONFIG — קישור לסקריפט החי
+    ==================================================== */
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4t__5Rrf6ChX-JJYHSmZQ_4KanN03uTBayyRvG3G0hT6texwkrVCJDPkxoGzE5vRaZg/exec';
 
-  let data=DATA.dashboard.byEmployee;
-  let max=Math.max(...data.map(x=>x.balance));
+    /* ====================================================
+       STATE
+    ==================================================== */
+    const state = {
+      employees: [],
+      workTypes: [],
+      rates: [],
+      logs: [],
+      payments: [],
+      settings: null,
+      dashboard: null
+    };
 
-  data.forEach((e,i)=>{
-    let h=(e.balance/max)*100;
-    ctx.fillRect(i*50,100-h,30,h);
-    ctx.fillText(e.employeeName,i*50,120);
-  });
-}
+    /* ====================================================
+       INIT
+    ==================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      bindForms();
+      refreshAll();
+    });
 
-/* עובדים */
+    function bindForms() {
+      document.getElementById('employeeForm').addEventListener('submit', saveEmployeeForm);
+      document.getElementById('workTypeForm').addEventListener('submit', saveWorkTypeForm);
+      document.getElementById('rateForm').addEventListener('submit', saveRateForm);
+      document.getElementById('workLogForm').addEventListener('submit', saveWorkLogForm);
+      document.getElementById('paymentForm').addEventListener('submit', savePaymentForm);
+      document.getElementById('settingsForm').addEventListener('submit', saveSettingsForm);
+    }
 
-function renderEmployees(){
-  let html='<div class="card">';
+    /* ====================================================
+       API CALL — fetch לסקריפט
+    ==================================================== */
+    async function callServer(action, payload) {
+      const params = new URLSearchParams({ action });
+      if (payload !== undefined && payload !== null) {
+        params.append('payload', JSON.stringify(payload));
+      }
 
-  html+='<button onclick="openAddEmployee()">הוסף עובד</button>';
-  html+='<input class="search" placeholder="חיפוש..." oninput="searchEmployees(this.value)">';
+      const url = `${SCRIPT_URL}?${params.toString()}`;
 
-  html+='<table><tr><th>שם</th><th></th></tr>';
+      const response = await fetch(url, { redirect: 'follow' });
+      if (!response.ok) {
+        throw new Error(`שגיאת שרת: ${response.status}`);
+      }
 
-  DATA.employees.forEach(e=>{
-    html+=`
-    <tr>
-      <td>${e.name}</td>
-      <td>
-        <button onclick="deleteEmployee('${e.employeeId}')">מחק</button>
-      </td>
-    </tr>`;
-  });
+      const data = await response.json();
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+      return data;
+    }
 
-  html+='</table></div>';
+    /* ====================================================
+       REFRESH ALL
+    ==================================================== */
+    async function refreshAll() {
+      try {
+        showLoading(true);
+        const data = await callServer('getInitialData');
+        state.employees  = data.employees  || [];
+        state.workTypes  = data.workTypes  || [];
+        state.payments   = data.payments   || [];
+        state.settings   = data.settings   || null;
+        state.dashboard  = data.dashboard  || null;
+        state.logs       = data.logs       || [];
 
-  document.getElementById("employees").innerHTML=html;
-}
+        renderAll();
+        showToast('הנתונים נטענו בהצלחה', 'success');
+      } catch (err) {
+        showToast('שגיאה בטעינת נתונים: ' + getErrorMessage(err), 'error');
+        console.error('refreshAll error:', err);
+      } finally {
+        showLoading(false);
+      }
+    }
 
-function searchEmployees(q){
-  let rows=document.querySelectorAll("#employees table tr");
-  rows.forEach((r,i)=>{
-    if(i==0) return;
-    r.style.display=r.innerText.includes(q)?'':'none';
-  });
-}
+    function showLoading(flag) {
+      document.getElementById('loading').classList.toggle('hidden', !flag);
+      document.getElementById('appContent').classList.toggle('hidden', flag);
+    }
 
-function openAddEmployee(){
-  showPopup(`
-    <h3>הוספת עובד</h3>
-    <input id="empName">
-    <button onclick="saveEmployee()">שמור</button>
-  `);
-}
+    function renderAll() {
+      renderSettings();
+      renderEmployeeOptions();
+      renderWorkTypeOptions();
+      renderEmployeesTable();
+      renderWorkTypesTable();
+      renderDashboard();
+      loadRates();
+      loadWorkLogs();
+      loadPayments();
+      toggleWorkLogInputMode();
+      setDefaultDates();
+    }
 
-async function saveEmployee(){
-  await api("saveEmployee",{name:document.getElementById("empName").value});
-  closePopup();
-  load();
-}
+    function setDefaultDates() {
+      const today = new Date().toISOString().split('T')[0];
+      const ids = ['logDate', 'paymentDate', 'rateEffectiveFrom'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.value) el.value = today;
+      });
+    }
 
-async function deleteEmployee(id){
-  await api("deleteEmployee",id);
-  load();
-}
+    /* ====================================================
+       TABS
+    ==================================================== */
+    function openTab(tabName) {
+      document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById('page-' + tabName).classList.add('active');
+      const tabBtn = document.querySelector(`.tab[data-tab="${tabName}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+    }
 
-/* רישומים */
+    /* ====================================================
+       SETTINGS
+    ==================================================== */
+    function renderSettings() {
+      if (!state.settings) return;
+      document.getElementById('appTitle').textContent = state.settings.appTitle || 'מערכת ניהול העסקת עובדים';
+      document.title = state.settings.appTitle || 'ניהול העסקת עובדים';
+      setVal('settingsAppTitle', state.settings.appTitle || '');
+      setVal('settingsEnableUnit',  String(!!state.settings.enableUnit));
+      setVal('settingsEnableHour',  String(!!state.settings.enableHour));
+      setVal('settingsEnableFixed', String(!!state.settings.enableFixed));
+    }
 
-function renderWork(){
-  let html='<div class="card">';
+    async function saveSettingsForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('saveSettings', {
+          appTitle:     val('settingsAppTitle'),
+          enableUnit:   val('settingsEnableUnit')  === 'true',
+          enableHour:   val('settingsEnableHour')  === 'true',
+          enableFixed:  val('settingsEnableFixed') === 'true'
+        });
+        await refreshAll();
+        showToast('ההגדרות נשמרו בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
 
-  html+='<button onclick="openAddWork()">הוסף רישום</button>';
+    /* ====================================================
+       OPTIONS / SELECTS
+    ==================================================== */
+    function renderEmployeeOptions() {
+      const emps = state.employees || [];
+      const active = emps.filter(x => x.active);
+      fillSelect('dashboardEmployeeFilter', emps,   'employeeId', 'name', true);
+      fillSelect('logEmployeeId',           active,  'employeeId', 'name', false);
+      fillSelect('paymentEmployeeId',       active,  'employeeId', 'name', false);
+      fillSelect('workLogFilterEmployee',   emps,    'employeeId', 'name', true);
+      fillSelect('paymentFilterEmployee',   emps,    'employeeId', 'name', true);
+    }
 
-  html+='<table><tr><th>עובד</th><th>סכום</th></tr>';
+    function renderWorkTypeOptions() {
+      const wts = state.workTypes || [];
+      const active = wts.filter(x => x.active);
+      const methods = state.settings?.paymentMethods || [];
+      fillSelect('workTypePaymentMethod',   methods, 'code',       'label',    false);
+      fillSelect('rateWorkTypeId',          active,  'workTypeId', 'workName', false);
+      fillSelect('logWorkTypeId',           active,  'workTypeId', 'workName', false);
+      fillSelect('workLogFilterWorkType',   wts,     'workTypeId', 'workName', true);
+      fillSelect('rateFilterWorkType',      wts,     'workTypeId', 'workName', true);
+    }
 
-  DATA.logs.forEach(l=>{
-    html+=`<tr><td>${l.employeeName}</td><td>${l.totalAmount}</td></tr>`;
-  });
+    function fillSelect(id, rows, valueKey, labelKey, includeAll) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const currentVal = el.value;
+      let html = includeAll ? '<option value="">הכל</option>' : '';
+      rows.forEach(item => {
+        html += `<option value="${escapeHtml(item[valueKey] ?? '')}">${escapeHtml(item[labelKey] ?? '')}</option>`;
+      });
+      el.innerHTML = html;
+      if ([...el.options].some(o => o.value === currentVal)) {
+        el.value = currentVal;
+      }
+    }
 
-  html+='</table></div>';
+    /* ====================================================
+       DASHBOARD
+    ==================================================== */
+    function renderDashboard() {
+      const dashboard = state.dashboard || { totals: {}, byEmployee: [] };
+      const totals    = dashboard.totals || {};
 
-  document.getElementById("work").innerHTML=html;
-}
+      const statsHtml = [
+        { label: 'סה״כ הרוויחו',        value: money(totals.totalEarned   || 0) },
+        { label: 'סה״כ שולם',            value: money(totals.totalPaid     || 0) },
+        { label: 'יתרה פתוחה',           value: money(totals.totalBalance  || 0) },
+        { label: 'עובדים פעילים',        value: numberFormat(totals.activeEmployees || 0) },
+        { label: 'רישומי עבודה',         value: numberFormat(totals.workLogsCount   || 0) },
+        { label: 'תשלומים',              value: numberFormat(totals.paymentsCount    || 0) }
+      ].map(item => `
+        <div class="stat">
+          <div class="label">${item.label}</div>
+          <div class="value">${item.value}</div>
+        </div>
+      `).join('');
 
-function openAddWork(){
-  let empOptions=DATA.employees.map(e=>`<option value="${e.employeeId}">${e.name}</option>`).join('');
-  let workOptions=DATA.workTypes.map(w=>`<option value="${w.workTypeId}">${w.workName}</option>`).join('');
+      document.getElementById('dashboardStats').innerHTML = statsHtml;
 
-  showPopup(`
-    <h3>רישום עבודה</h3>
-    <select id="emp">${empOptions}</select>
-    <select id="work">${workOptions}</select>
-    <input id="qty" placeholder="כמות">
-    <input id="time" placeholder="שעות:דקות">
-    <button onclick="saveWork()">שמור</button>
-  `);
-}
+      const table = document.getElementById('dashboardEmployeesTable');
+      const rows  = dashboard.byEmployee || [];
 
-async function saveWork(){
-  await api("saveWorkLog",{
-    employeeId:val("emp"),
-    workTypeId:val("work"),
-    quantity:val("qty"),
-    timeHHMM:val("time")
-  });
-  closePopup();
-  load();
-}
+      if (!rows.length) {
+        table.innerHTML = `<tr><td colspan="5" class="empty">אין נתונים להצגה</td></tr>`;
+        return;
+      }
 
-/* popup */
+      table.innerHTML = rows.map(row => {
+        const balClass = row.balance > 0 ? 'balance-positive' : 'balance-settled';
+        return `
+          <tr>
+            <td>${escapeHtml(row.employeeName)}</td>
+            <td>${money(row.totalEarned)}</td>
+            <td>${money(row.totalPaid)}</td>
+            <td class="${balClass}">${money(row.balance)}</td>
+            <td>${row.active ? badge('פעיל','success') : badge('לא פעיל','warning')}</td>
+          </tr>
+        `;
+      }).join('');
+    }
 
-function showPopup(html){
-  document.getElementById("popupContent").innerHTML=html;
-  document.getElementById("popup").style.display="flex";
-}
+    async function loadDashboard() {
+      try {
+        const filters = {
+          employeeId: val('dashboardEmployeeFilter'),
+          dateFrom:   val('dashboardDateFrom'),
+          dateTo:     val('dashboardDateTo')
+        };
+        state.dashboard = await callServer('getDashboardSummary', filters);
+        renderDashboard();
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
 
-function closePopup(){
-  document.getElementById("popup").style.display="none";
-}
+    function resetDashboardFilters() {
+      setVal('dashboardEmployeeFilter', '');
+      setVal('dashboardDateFrom', '');
+      setVal('dashboardDateTo',   '');
+      loadDashboard();
+    }
 
-function val(id){return document.getElementById(id).value}
+    /* ====================================================
+       EMPLOYEES
+    ==================================================== */
+    function renderEmployeesTable() {
+      const tbody = document.getElementById('employeesTable');
+      if (!state.employees.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty">עדיין אין עובדים במערכת</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.employees.map(emp => `
+        <tr>
+          <td><strong>${escapeHtml(emp.name)}</strong></td>
+          <td>${emp.active ? badge('כן','success') : badge('לא','warning')}</td>
+          <td>${escapeHtml(emp.notes || '')}</td>
+          <td>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick='editEmployee(${json(emp)})'>עריכה</button>
+              <button class="btn btn-warning btn-sm" onclick="toggleEmployeeStatus('${emp.employeeId}', ${!emp.active})">${emp.active ? 'השבת' : 'הפעל'}</button>
+              <button class="btn btn-danger btn-sm" onclick="removeEmployee('${emp.employeeId}')">מחיקה</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
 
-load();
+    async function saveEmployeeForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('saveEmployee', {
+          employeeId: val('employeeId'),
+          name:       val('employeeName'),
+          active:     val('employeeActive') === 'true',
+          notes:      val('employeeNotes')
+        });
+        resetEmployeeForm();
+        await refreshAll();
+        showToast('העובד נשמר בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
 
-</script>
+    function editEmployee(emp) {
+      setVal('employeeId',    emp.employeeId || '');
+      setVal('employeeName',  emp.name       || '');
+      setVal('employeeActive',String(!!emp.active));
+      setVal('employeeNotes', emp.notes      || '');
+      openTab('employees');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
+    function resetEmployeeForm() {
+      setVal('employeeId', '');
+      setVal('employeeName', '');
+      setVal('employeeActive', 'true');
+      setVal('employeeNotes', '');
+    }
+
+    async function removeEmployee(id) {
+      if (!confirm('למחוק את העובד? אם יש לו היסטוריה, עדיף להשבית ולא למחוק.')) return;
+      try {
+        await callServer('deleteEmployee', id);
+        await refreshAll();
+        showToast('העובד נמחק', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    async function toggleEmployeeStatus(id, active) {
+      try {
+        await callServer('toggleEmployeeActive', { id, active });
+        await refreshAll();
+        showToast('סטטוס העובד עודכן', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    /* ====================================================
+       WORK TYPES
+    ==================================================== */
+    function renderWorkTypesTable() {
+      const tbody = document.getElementById('workTypesTable');
+      if (!state.workTypes.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">עדיין אין סוגי עבודות במערכת</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.workTypes.map(item => `
+        <tr>
+          <td><strong>${escapeHtml(item.workName)}</strong></td>
+          <td>${paymentMethodLabel(item.paymentMethod)}</td>
+          <td>${money(item.currentRate || 0)}</td>
+          <td>${item.active ? badge('כן','success') : badge('לא','warning')}</td>
+          <td>${escapeHtml(item.notes || '')}</td>
+          <td>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick='editWorkType(${json(item)})'>עריכה</button>
+              <button class="btn btn-warning btn-sm" onclick="toggleWorkTypeStatus('${item.workTypeId}', ${!item.active})">${item.active ? 'השבת' : 'הפעל'}</button>
+              <button class="btn btn-danger btn-sm" onclick="removeWorkType('${item.workTypeId}')">מחיקה</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function saveWorkTypeForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('saveWorkType', {
+          workTypeId:    val('workTypeId'),
+          workName:      val('workTypeName'),
+          paymentMethod: val('workTypePaymentMethod'),
+          active:        val('workTypeActive') === 'true',
+          notes:         val('workTypeNotes')
+        });
+        resetWorkTypeForm();
+        await refreshAll();
+        showToast('סוג העבודה נשמר בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function editWorkType(item) {
+      setVal('workTypeId',            item.workTypeId    || '');
+      setVal('workTypeName',          item.workName      || '');
+      setVal('workTypePaymentMethod', item.paymentMethod || '');
+      setVal('workTypeActive',        String(!!item.active));
+      setVal('workTypeNotes',         item.notes         || '');
+      openTab('worktypes');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetWorkTypeForm() {
+      setVal('workTypeId',   '');
+      setVal('workTypeName', '');
+      setVal('workTypeActive', 'true');
+      setVal('workTypeNotes', '');
+      const methods = state.settings?.paymentMethods || [];
+      if (methods.length) setVal('workTypePaymentMethod', methods[0].code);
+    }
+
+    async function toggleWorkTypeStatus(id, active) {
+      try {
+        await callServer('toggleWorkTypeActive', { id, active });
+        await refreshAll();
+        showToast('סטטוס סוג העבודה עודכן', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    async function removeWorkType(id) {
+      if (!confirm('למחוק את סוג העבודה? מחיקה עלולה לפגוע בהיסטוריה.')) return;
+      try {
+        await callServer('deleteWorkType', id);
+        await refreshAll();
+        showToast('סוג העבודה נמחק', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    /* ====================================================
+       RATES
+    ==================================================== */
+    async function loadRates() {
+      try {
+        const workTypeId = val('rateFilterWorkType');
+        const rates = await callServer('getRates', workTypeId || null);
+        state.rates = rates || [];
+        renderRatesTable();
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function renderRatesTable() {
+      const tbody = document.getElementById('ratesTable');
+      if (!state.rates.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">עדיין אין תעריפים במערכת</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.rates.map(rate => {
+        const wt = state.workTypes.find(w => w.workTypeId === rate.workTypeId);
+        return `
+          <tr>
+            <td>${escapeHtml(wt?.workName || 'לא ידוע')}</td>
+            <td>${money(rate.rateValue)}</td>
+            <td>${escapeHtml(rate.effectiveFrom || '')}</td>
+            <td>${escapeHtml(rate.effectiveTo   || '—')}</td>
+            <td>${escapeHtml(rate.notes || '')}</td>
+            <td>
+              <div class="btn-row">
+                <button class="btn btn-secondary btn-sm" onclick='editRate(${json(rate)})'>עריכה</button>
+                <button class="btn btn-danger btn-sm" onclick="removeRate('${rate.rateId}')">מחיקה</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function saveRateForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('saveRate', {
+          rateId:        val('rateId'),
+          workTypeId:    val('rateWorkTypeId'),
+          rateValue:     val('rateValue'),
+          effectiveFrom: val('rateEffectiveFrom'),
+          effectiveTo:   val('rateEffectiveTo'),
+          notes:         val('rateNotes')
+        });
+        resetRateForm();
+        await refreshAll();
+        openTab('rates');
+        showToast('התעריף נשמר בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function editRate(rate) {
+      setVal('rateId',          rate.rateId       || '');
+      setVal('rateWorkTypeId',  rate.workTypeId    || '');
+      setVal('rateValue',       rate.rateValue     || '');
+      setVal('rateEffectiveFrom', rate.effectiveFrom || '');
+      setVal('rateEffectiveTo',   rate.effectiveTo   || '');
+      setVal('rateNotes',       rate.notes         || '');
+      openTab('rates');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetRateForm() {
+      setVal('rateId',       '');
+      setVal('rateValue',    '');
+      setVal('rateEffectiveTo', '');
+      setVal('rateNotes',    '');
+      const activeWts = state.workTypes.filter(x => x.active);
+      if (activeWts.length) setVal('rateWorkTypeId', activeWts[0].workTypeId);
+      setVal('rateEffectiveFrom', new Date().toISOString().split('T')[0]);
+    }
+
+    function resetRateFilter() {
+      setVal('rateFilterWorkType', '');
+      loadRates();
+    }
+
+    async function removeRate(id) {
+      if (!confirm('למחוק את התעריף?')) return;
+      try {
+        await callServer('deleteRate', id);
+        await refreshAll();
+        showToast('התעריף נמחק', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    /* ====================================================
+       WORK LOGS
+    ==================================================== */
+    function toggleWorkLogInputMode() {
+      const workTypeId = val('logWorkTypeId');
+      const wt     = state.workTypes.find(x => x.workTypeId === workTypeId);
+      const method = wt?.paymentMethod || '';
+
+      document.getElementById('quantityField').classList.add('hidden');
+      document.getElementById('timeField').classList.add('hidden');
+      document.getElementById('fixedField').classList.add('hidden');
+
+      if (method === 'unit')  document.getElementById('quantityField').classList.remove('hidden');
+      if (method === 'hour')  document.getElementById('timeField').classList.remove('hidden');
+      if (method === 'fixed') document.getElementById('fixedField').classList.remove('hidden');
+
+      document.getElementById('workLogMethodNote').textContent = method
+        ? `שיטת התשלום: ${paymentMethodLabel(method)}`
+        : '';
+    }
+
+    async function loadWorkLogs() {
+      try {
+        const filters = {
+          employeeId: val('workLogFilterEmployee'),
+          workTypeId: val('workLogFilterWorkType'),
+          status:     val('workLogFilterStatus'),
+          dateFrom:   val('workLogDateFrom'),
+          dateTo:     val('workLogDateTo')
+        };
+        state.logs = await callServer('getWorkLogs', filters);
+        renderWorkLogsTable();
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function renderWorkLogsTable() {
+      const tbody = document.getElementById('workLogsTable');
+      if (!state.logs.length) {
+        tbody.innerHTML = `<tr><td colspan="10" class="empty">אין רישומי עבודה להצגה</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.logs.map(log => `
+        <tr>
+          <td>${escapeHtml(log.date || '')}</td>
+          <td>${escapeHtml(log.employeeName || '')}</td>
+          <td>${escapeHtml(log.workTypeName || '')}</td>
+          <td>${log.paymentMethod === 'unit'  ? numberFormat(log.quantity) : '—'}</td>
+          <td>${log.paymentMethod === 'hour'  ? escapeHtml(log.timeHHMM || '') : '—'}</td>
+          <td>${money(log.rateUsed    || 0)}</td>
+          <td><strong>${money(log.totalAmount || 0)}</strong></td>
+          <td>${log.status === 'canceled' ? badge('מבוטל','danger') : badge('פעיל','success')}</td>
+          <td>${escapeHtml(log.notes || '')}</td>
+          <td>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick='editWorkLog(${json(log)})'>עריכה</button>
+              <button class="btn btn-danger btn-sm" onclick="removeWorkLog('${log.logId}')">מחיקה</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function saveWorkLogForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('saveWorkLog', {
+          logId:      val('logId'),
+          date:       val('logDate'),
+          employeeId: val('logEmployeeId'),
+          workTypeId: val('logWorkTypeId'),
+          quantity:   val('logQuantity'),
+          timeHHMM:   val('logTimeHHMM'),
+          status:     val('logStatus'),
+          notes:      val('logNotes')
+        });
+        resetWorkLogForm();
+        await refreshAll();
+        openTab('worklogs');
+        showToast('רישום העבודה נשמר בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function editWorkLog(log) {
+      setVal('logId',        log.logId      || '');
+      setVal('logDate',      log.date       || '');
+      setVal('logEmployeeId',log.employeeId || '');
+      setVal('logWorkTypeId',log.workTypeId || '');
+      setVal('logQuantity',  log.quantity   || '');
+      setVal('logTimeHHMM',  log.timeHHMM   || '');
+      setVal('logStatus',    log.status     || 'active');
+      setVal('logNotes',     log.notes      || '');
+      toggleWorkLogInputMode();
+      openTab('worklogs');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetWorkLogForm() {
+      setVal('logId',     '');
+      setVal('logDate',   new Date().toISOString().split('T')[0]);
+      const activeEmps = state.employees.filter(x => x.active);
+      if (activeEmps.length) setVal('logEmployeeId', activeEmps[0].employeeId);
+      const activeWts = state.workTypes.filter(x => x.active);
+      if (activeWts.length) setVal('logWorkTypeId', activeWts[0].workTypeId);
+      setVal('logQuantity', '');
+      setVal('logTimeHHMM', '');
+      setVal('logStatus',   'active');
+      setVal('logNotes',    '');
+      toggleWorkLogInputMode();
+    }
+
+    async function removeWorkLog(id) {
+      if (!confirm('למחוק את רישום העבודה?')) return;
+      try {
+        await callServer('deleteWorkLog', id);
+        await refreshAll();
+        showToast('רישום העבודה נמחק', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function resetWorkLogFilters() {
+      setVal('workLogFilterEmployee', '');
+      setVal('workLogFilterWorkType', '');
+      setVal('workLogFilterStatus',   '');
+      setVal('workLogDateFrom',       '');
+      setVal('workLogDateTo',         '');
+      loadWorkLogs();
+    }
+
+    /* ====================================================
+       PAYMENTS
+    ==================================================== */
+    async function loadPayments() {
+      try {
+        const filters = {
+          employeeId: val('paymentFilterEmployee'),
+          dateFrom:   val('paymentDateFrom'),
+          dateTo:     val('paymentDateTo')
+        };
+        state.payments = await callServer('getPayments', filters);
+        renderPaymentsTable();
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function renderPaymentsTable() {
+      const tbody = document.getElementById('paymentsTable');
+      if (!state.payments.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">אין תשלומים להצגה</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.payments.map(pay => `
+        <tr>
+          <td>${escapeHtml(pay.date || '')}</td>
+          <td>${escapeHtml(pay.employeeName || '')}</td>
+          <td><strong>${money(pay.amount || 0)}</strong></td>
+          <td>${escapeHtml(pay.notes || '')}</td>
+          <td>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick='editPayment(${json(pay)})'>עריכה</button>
+              <button class="btn btn-danger btn-sm" onclick="removePayment('${pay.paymentId}')">מחיקה</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function savePaymentForm(e) {
+      e.preventDefault();
+      try {
+        await callServer('savePayment', {
+          paymentId:  val('paymentId'),
+          date:       val('paymentDate'),
+          employeeId: val('paymentEmployeeId'),
+          amount:     val('paymentAmount'),
+          notes:      val('paymentNotes')
+        });
+        resetPaymentForm();
+        await refreshAll();
+        openTab('payments');
+        showToast('התשלום נשמר בהצלחה', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function editPayment(pay) {
+      setVal('paymentId',        pay.paymentId  || '');
+      setVal('paymentDate',      pay.date       || '');
+      setVal('paymentEmployeeId',pay.employeeId || '');
+      setVal('paymentAmount',    pay.amount     || '');
+      setVal('paymentNotes',     pay.notes      || '');
+      openTab('payments');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetPaymentForm() {
+      setVal('paymentId',    '');
+      setVal('paymentDate',  new Date().toISOString().split('T')[0]);
+      const activeEmps = state.employees.filter(x => x.active);
+      if (activeEmps.length) setVal('paymentEmployeeId', activeEmps[0].employeeId);
+      setVal('paymentAmount', '');
+      setVal('paymentNotes',  '');
+    }
+
+    async function removePayment(id) {
+      if (!confirm('למחוק את התשלום?')) return;
+      try {
+        await callServer('deletePayment', id);
+        await refreshAll();
+        showToast('התשלום נמחק', 'success');
+      } catch (err) {
+        showToast(getErrorMessage(err), 'error');
+      }
+    }
+
+    function resetPaymentFilters() {
+      setVal('paymentFilterEmployee', '');
+      setVal('paymentDateFrom',       '');
+      setVal('paymentDateTo',         '');
+      loadPayments();
+    }
+
+    /* ====================================================
+       UTILS
+    ==================================================== */
+    function money(v) {
+      return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS' }).format(Number(v || 0));
+    }
+
+    function numberFormat(v) {
+      return new Intl.NumberFormat('he-IL').format(Number(v || 0));
+    }
+
+    function paymentMethodLabel(code) {
+      const map = { unit: 'לפי כמות', hour: 'לפי שעות', fixed: 'קבוע' };
+      return map[code] || code || '';
+    }
+
+    function badge(text, type = 'info') {
+      return `<span class="badge ${type}">${escapeHtml(text)}</span>`;
+    }
+
+    function val(id)          { return document.getElementById(id)?.value ?? ''; }
+    function setVal(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ''; }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function json(obj) {
+      return JSON.stringify(obj).replace(/"/g, '&quot;');
+    }
+
+    function getErrorMessage(err) {
+      if (!err) return 'אירעה שגיאה לא צפויה';
+      return err.message || String(err);
+    }
+
+    let toastTimer = null;
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.className = `toast ${type}`;
+      }, 3500);
+    }
+  </script>
 </body>
 </html>
