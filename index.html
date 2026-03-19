@@ -1143,7 +1143,7 @@
 
   <script>
     /* ====================================================
-       CONFIG — קישור לסקריפט החי
+       CONFIG
     ==================================================== */
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx4t__5Rrf6ChX-JJYHSmZQ_4KanN03uTBayyRvG3G0hT6texwkrVCJDPkxoGzE5vRaZg/exec';
 
@@ -1151,13 +1151,8 @@
        STATE
     ==================================================== */
     const state = {
-      employees: [],
-      workTypes: [],
-      rates: [],
-      logs: [],
-      payments: [],
-      settings: null,
-      dashboard: null
+      employees: [], workTypes: [], rates: [],
+      logs: [], payments: [], settings: null, dashboard: null
     };
 
     /* ====================================================
@@ -1178,50 +1173,86 @@
     }
 
     /* ====================================================
-       API CALL — fetch לסקריפט
+       API — fetch עם timeout
     ==================================================== */
     async function callServer(action, payload) {
       const params = new URLSearchParams({ action });
       if (payload !== undefined && payload !== null) {
         params.append('payload', JSON.stringify(payload));
       }
-
-      const url = `${SCRIPT_URL}?${params.toString()}`;
-
-      const response = await fetch(url, { redirect: 'follow' });
-      if (!response.ok) {
-        throw new Error(`שגיאת שרת: ${response.status}`);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(`${SCRIPT_URL}?${params}`, {
+          redirect: 'follow', signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (!response.ok) throw new Error(`שגיאת שרת: ${response.status}`);
+        const data = await response.json();
+        if (data && data.error) throw new Error(data.error);
+        return data;
+      } catch (err) {
+        clearTimeout(timer);
+        if (err.name === 'AbortError') throw new Error('הבקשה פגה זמן — נסה שוב');
+        throw err;
       }
-
-      const data = await response.json();
-      if (data && data.error) {
-        throw new Error(data.error);
-      }
-      return data;
     }
 
     /* ====================================================
-       REFRESH ALL
+       OPTIMISTIC HELPER
+       מעדכן state מקומית מיד, שולח לשרת ברקע,
+       ואם נכשל — מחזיר snapshot קודם ומציג שגיאה.
+    ==================================================== */
+    async function optimistic(mutateState, serverCall, onSuccess, onRollback) {
+      const snapshot = JSON.parse(JSON.stringify(state)); // deep clone
+      mutateState();         // עדכון מיידי
+      renderAll();           // ציור מיידי
+      try {
+        await serverCall();
+        if (onSuccess) onSuccess();
+      } catch (err) {
+        // rollback
+        Object.assign(state, snapshot);
+        renderAll();
+        showToast(getErrorMessage(err), 'error');
+        if (onRollback) onRollback();
+      }
+    }
+
+    /* ====================================================
+       REFRESH ALL — רק בטעינה ראשונית
     ==================================================== */
     async function refreshAll() {
       try {
         showLoading(true);
         const data = await callServer('getInitialData');
-        state.employees  = data.employees  || [];
-        state.workTypes  = data.workTypes  || [];
-        state.payments   = data.payments   || [];
-        state.settings   = data.settings   || null;
-        state.dashboard  = data.dashboard  || null;
-        state.logs       = data.logs       || [];
-
+        state.employees = data.employees || [];
+        state.workTypes = data.workTypes || [];
+        state.payments  = data.payments  || [];
+        state.settings  = data.settings  || null;
+        state.dashboard = data.dashboard || null;
+        state.logs      = data.logs      || [];
         renderAll();
-        showToast('הנתונים נטענו בהצלחה', 'success');
       } catch (err) {
         showToast('שגיאה בטעינת נתונים: ' + getErrorMessage(err), 'error');
         console.error('refreshAll error:', err);
       } finally {
         showLoading(false);
       }
+    }
+
+    /* רענון שקט ברקע לאחר שמירה — מסנכרן עם הגיליון */
+    async function silentSync() {
+      try {
+        const data = await callServer('getInitialData');
+        state.employees = data.employees || [];
+        state.workTypes = data.workTypes || [];
+        state.payments  = data.payments  || [];
+        state.settings  = data.settings  || null;
+        state.dashboard = data.dashboard || null;
+        state.logs      = data.logs      || [];
+        renderAll();
+      } catch (_) { /* שקט — לא מפריע למשתמש */ }
     }
 
     function showLoading(flag) {
@@ -1236,17 +1267,16 @@
       renderEmployeesTable();
       renderWorkTypesTable();
       renderDashboard();
-      loadRates();
-      loadWorkLogs();
-      loadPayments();
+      renderRatesTable();
+      renderWorkLogsTable();
+      renderPaymentsTable();
       toggleWorkLogInputMode();
       setDefaultDates();
     }
 
     function setDefaultDates() {
       const today = new Date().toISOString().split('T')[0];
-      const ids = ['logDate', 'paymentDate', 'rateEffectiveFrom'];
-      ids.forEach(id => {
+      ['logDate', 'paymentDate', 'rateEffectiveFrom'].forEach(id => {
         const el = document.getElementById(id);
         if (el && !el.value) el.value = today;
       });
@@ -1259,8 +1289,7 @@
       document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
       document.getElementById('page-' + tabName).classList.add('active');
-      const tabBtn = document.querySelector(`.tab[data-tab="${tabName}"]`);
-      if (tabBtn) tabBtn.classList.add('active');
+      document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
     }
 
     /* ====================================================
@@ -1270,7 +1299,7 @@
       if (!state.settings) return;
       document.getElementById('appTitle').textContent = state.settings.appTitle || 'מערכת ניהול העסקת עובדים';
       document.title = state.settings.appTitle || 'ניהול העסקת עובדים';
-      setVal('settingsAppTitle', state.settings.appTitle || '');
+      setVal('settingsAppTitle',  state.settings.appTitle || '');
       setVal('settingsEnableUnit',  String(!!state.settings.enableUnit));
       setVal('settingsEnableHour',  String(!!state.settings.enableHour));
       setVal('settingsEnableFixed', String(!!state.settings.enableFixed));
@@ -1278,15 +1307,17 @@
 
     async function saveSettingsForm(e) {
       e.preventDefault();
+      const payload = {
+        appTitle:    val('settingsAppTitle'),
+        enableUnit:  val('settingsEnableUnit')  === 'true',
+        enableHour:  val('settingsEnableHour')  === 'true',
+        enableFixed: val('settingsEnableFixed') === 'true'
+      };
+      // settings לא optimistic — מחכים לתגובה כי הם משפיעים על אפשרויות אחרות
       try {
-        await callServer('saveSettings', {
-          appTitle:     val('settingsAppTitle'),
-          enableUnit:   val('settingsEnableUnit')  === 'true',
-          enableHour:   val('settingsEnableHour')  === 'true',
-          enableFixed:  val('settingsEnableFixed') === 'true'
-        });
-        await refreshAll();
+        await callServer('saveSettings', payload);
         showToast('ההגדרות נשמרו בהצלחה', 'success');
+        silentSync();
       } catch (err) {
         showToast(getErrorMessage(err), 'error');
       }
@@ -1296,7 +1327,7 @@
        OPTIONS / SELECTS
     ==================================================== */
     function renderEmployeeOptions() {
-      const emps = state.employees || [];
+      const emps   = state.employees || [];
       const active = emps.filter(x => x.active);
       fillSelect('dashboardEmployeeFilter', emps,   'employeeId', 'name', true);
       fillSelect('logEmployeeId',           active,  'employeeId', 'name', false);
@@ -1306,14 +1337,14 @@
     }
 
     function renderWorkTypeOptions() {
-      const wts = state.workTypes || [];
+      const wts    = state.workTypes || [];
       const active = wts.filter(x => x.active);
       const methods = state.settings?.paymentMethods || [];
-      fillSelect('workTypePaymentMethod',   methods, 'code',       'label',    false);
-      fillSelect('rateWorkTypeId',          active,  'workTypeId', 'workName', false);
-      fillSelect('logWorkTypeId',           active,  'workTypeId', 'workName', false);
-      fillSelect('workLogFilterWorkType',   wts,     'workTypeId', 'workName', true);
-      fillSelect('rateFilterWorkType',      wts,     'workTypeId', 'workName', true);
+      fillSelect('workTypePaymentMethod', methods, 'code',       'label',    false);
+      fillSelect('rateWorkTypeId',        active,  'workTypeId', 'workName', false);
+      fillSelect('logWorkTypeId',         active,  'workTypeId', 'workName', false);
+      fillSelect('workLogFilterWorkType', wts,     'workTypeId', 'workName', true);
+      fillSelect('rateFilterWorkType',    wts,     'workTypeId', 'workName', true);
     }
 
     function fillSelect(id, rows, valueKey, labelKey, includeAll) {
@@ -1325,9 +1356,7 @@
         html += `<option value="${escapeHtml(item[valueKey] ?? '')}">${escapeHtml(item[labelKey] ?? '')}</option>`;
       });
       el.innerHTML = html;
-      if ([...el.options].some(o => o.value === currentVal)) {
-        el.value = currentVal;
-      }
+      if ([...el.options].some(o => o.value === currentVal)) el.value = currentVal;
     }
 
     /* ====================================================
@@ -1337,42 +1366,29 @@
       const dashboard = state.dashboard || { totals: {}, byEmployee: [] };
       const totals    = dashboard.totals || {};
 
-      const statsHtml = [
-        { label: 'סה״כ הרוויחו',        value: money(totals.totalEarned   || 0) },
-        { label: 'סה״כ שולם',            value: money(totals.totalPaid     || 0) },
-        { label: 'יתרה פתוחה',           value: money(totals.totalBalance  || 0) },
-        { label: 'עובדים פעילים',        value: numberFormat(totals.activeEmployees || 0) },
-        { label: 'רישומי עבודה',         value: numberFormat(totals.workLogsCount   || 0) },
-        { label: 'תשלומים',              value: numberFormat(totals.paymentsCount    || 0) }
-      ].map(item => `
-        <div class="stat">
-          <div class="label">${item.label}</div>
-          <div class="value">${item.value}</div>
-        </div>
-      `).join('');
+      document.getElementById('dashboardStats').innerHTML = [
+        { label: 'סה״כ הרוויחו',  value: money(totals.totalEarned  || 0) },
+        { label: 'סה״כ שולם',     value: money(totals.totalPaid    || 0) },
+        { label: 'יתרה פתוחה',    value: money(totals.totalBalance || 0) },
+        { label: 'עובדים פעילים', value: numberFormat(totals.activeEmployees || 0) },
+        { label: 'רישומי עבודה',  value: numberFormat(totals.workLogsCount   || 0) },
+        { label: 'תשלומים',       value: numberFormat(totals.paymentsCount   || 0) }
+      ].map(item => `<div class="stat"><div class="label">${item.label}</div><div class="value">${item.value}</div></div>`).join('');
 
-      document.getElementById('dashboardStats').innerHTML = statsHtml;
-
+      const rows = dashboard.byEmployee || [];
       const table = document.getElementById('dashboardEmployeesTable');
-      const rows  = dashboard.byEmployee || [];
-
       if (!rows.length) {
         table.innerHTML = `<tr><td colspan="5" class="empty">אין נתונים להצגה</td></tr>`;
         return;
       }
-
-      table.innerHTML = rows.map(row => {
-        const balClass = row.balance > 0 ? 'balance-positive' : 'balance-settled';
-        return `
-          <tr>
-            <td>${escapeHtml(row.employeeName)}</td>
-            <td>${money(row.totalEarned)}</td>
-            <td>${money(row.totalPaid)}</td>
-            <td class="${balClass}">${money(row.balance)}</td>
-            <td>${row.active ? badge('פעיל','success') : badge('לא פעיל','warning')}</td>
-          </tr>
-        `;
-      }).join('');
+      table.innerHTML = rows.map(row => `
+        <tr>
+          <td>${escapeHtml(row.employeeName)}</td>
+          <td>${money(row.totalEarned)}</td>
+          <td>${money(row.totalPaid)}</td>
+          <td class="${row.balance > 0 ? 'balance-positive' : 'balance-settled'}">${money(row.balance)}</td>
+          <td>${row.active ? badge('פעיל','success') : badge('לא פעיל','warning')}</td>
+        </tr>`).join('');
     }
 
     async function loadDashboard() {
@@ -1384,9 +1400,7 @@
         };
         state.dashboard = await callServer('getDashboardSummary', filters);
         renderDashboard();
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      } catch (err) { showToast(getErrorMessage(err), 'error'); }
     }
 
     function resetDashboardFilters() {
@@ -1397,7 +1411,7 @@
     }
 
     /* ====================================================
-       EMPLOYEES
+       EMPLOYEES — עם Optimistic UI
     ==================================================== */
     function renderEmployeesTable() {
       const tbody = document.getElementById('employeesTable');
@@ -1417,25 +1431,37 @@
               <button class="btn btn-danger btn-sm" onclick="removeEmployee('${emp.employeeId}')">מחיקה</button>
             </div>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
 
     async function saveEmployeeForm(e) {
       e.preventDefault();
-      try {
-        await callServer('saveEmployee', {
-          employeeId: val('employeeId'),
-          name:       val('employeeName'),
-          active:     val('employeeActive') === 'true',
-          notes:      val('employeeNotes')
-        });
-        resetEmployeeForm();
-        await refreshAll();
-        showToast('העובד נשמר בהצלחה', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      const payload = {
+        employeeId: val('employeeId'),
+        name:       val('employeeName'),
+        active:     val('employeeActive') === 'true',
+        notes:      val('employeeNotes')
+      };
+      if (!payload.name.trim()) { showToast('שם העובד הוא שדה חובה', 'error'); return; }
+
+      const isNew = !payload.employeeId;
+      const tempId = payload.employeeId || ('TEMP_' + Date.now());
+
+      await optimistic(
+        () => {
+          if (isNew) {
+            state.employees.push({ ...payload, employeeId: tempId });
+          } else {
+            const i = state.employees.findIndex(x => x.employeeId === payload.employeeId);
+            if (i >= 0) state.employees[i] = { ...state.employees[i], ...payload };
+          }
+          rebuildDashboard();
+          resetEmployeeForm();
+          showToast('העובד נשמר ✓', 'success');
+        },
+        () => callServer('saveEmployee', payload),
+        () => silentSync()
+      );
     }
 
     function editEmployee(emp) {
@@ -1448,35 +1474,38 @@
     }
 
     function resetEmployeeForm() {
-      setVal('employeeId', '');
-      setVal('employeeName', '');
-      setVal('employeeActive', 'true');
-      setVal('employeeNotes', '');
+      setVal('employeeId', ''); setVal('employeeName', '');
+      setVal('employeeActive', 'true'); setVal('employeeNotes', '');
     }
 
     async function removeEmployee(id) {
-      if (!confirm('למחוק את העובד? אם יש לו היסטוריה, עדיף להשבית ולא למחוק.')) return;
-      try {
-        await callServer('deleteEmployee', id);
-        await refreshAll();
-        showToast('העובד נמחק', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      if (!confirm('למחוק את העובד?')) return;
+      await optimistic(
+        () => {
+          state.employees = state.employees.filter(x => x.employeeId !== id);
+          rebuildDashboard();
+          showToast('העובד נמחק ✓', 'success');
+        },
+        () => callServer('deleteEmployee', id),
+        () => silentSync()
+      );
     }
 
     async function toggleEmployeeStatus(id, active) {
-      try {
-        await callServer('toggleEmployeeActive', { id, active });
-        await refreshAll();
-        showToast('סטטוס העובד עודכן', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      await optimistic(
+        () => {
+          const emp = state.employees.find(x => x.employeeId === id);
+          if (emp) emp.active = active;
+          rebuildDashboard();
+          showToast('סטטוס עודכן ✓', 'success');
+        },
+        () => callServer('toggleEmployeeActive', { id, active }),
+        () => silentSync()
+      );
     }
 
     /* ====================================================
-       WORK TYPES
+       WORK TYPES — עם Optimistic UI
     ==================================================== */
     function renderWorkTypesTable() {
       const tbody = document.getElementById('workTypesTable');
@@ -1498,26 +1527,37 @@
               <button class="btn btn-danger btn-sm" onclick="removeWorkType('${item.workTypeId}')">מחיקה</button>
             </div>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
 
     async function saveWorkTypeForm(e) {
       e.preventDefault();
-      try {
-        await callServer('saveWorkType', {
-          workTypeId:    val('workTypeId'),
-          workName:      val('workTypeName'),
-          paymentMethod: val('workTypePaymentMethod'),
-          active:        val('workTypeActive') === 'true',
-          notes:         val('workTypeNotes')
-        });
-        resetWorkTypeForm();
-        await refreshAll();
-        showToast('סוג העבודה נשמר בהצלחה', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      const payload = {
+        workTypeId:    val('workTypeId'),
+        workName:      val('workTypeName'),
+        paymentMethod: val('workTypePaymentMethod'),
+        active:        val('workTypeActive') === 'true',
+        notes:         val('workTypeNotes')
+      };
+      if (!payload.workName.trim()) { showToast('שם סוג העבודה הוא שדה חובה', 'error'); return; }
+
+      const isNew = !payload.workTypeId;
+      const tempId = payload.workTypeId || ('TEMP_' + Date.now());
+
+      await optimistic(
+        () => {
+          if (isNew) {
+            state.workTypes.push({ ...payload, workTypeId: tempId, currentRate: 0 });
+          } else {
+            const i = state.workTypes.findIndex(x => x.workTypeId === payload.workTypeId);
+            if (i >= 0) state.workTypes[i] = { ...state.workTypes[i], ...payload };
+          }
+          resetWorkTypeForm();
+          showToast('סוג העבודה נשמר ✓', 'success');
+        },
+        () => callServer('saveWorkType', payload),
+        () => silentSync()
+      );
     }
 
     function editWorkType(item) {
@@ -1531,56 +1571,57 @@
     }
 
     function resetWorkTypeForm() {
-      setVal('workTypeId',   '');
-      setVal('workTypeName', '');
-      setVal('workTypeActive', 'true');
-      setVal('workTypeNotes', '');
+      setVal('workTypeId', ''); setVal('workTypeName', '');
+      setVal('workTypeActive', 'true'); setVal('workTypeNotes', '');
       const methods = state.settings?.paymentMethods || [];
       if (methods.length) setVal('workTypePaymentMethod', methods[0].code);
     }
 
     async function toggleWorkTypeStatus(id, active) {
-      try {
-        await callServer('toggleWorkTypeActive', { id, active });
-        await refreshAll();
-        showToast('סטטוס סוג העבודה עודכן', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      await optimistic(
+        () => {
+          const wt = state.workTypes.find(x => x.workTypeId === id);
+          if (wt) wt.active = active;
+          showToast('סטטוס עודכן ✓', 'success');
+        },
+        () => callServer('toggleWorkTypeActive', { id, active }),
+        () => silentSync()
+      );
     }
 
     async function removeWorkType(id) {
-      if (!confirm('למחוק את סוג העבודה? מחיקה עלולה לפגוע בהיסטוריה.')) return;
-      try {
-        await callServer('deleteWorkType', id);
-        await refreshAll();
-        showToast('סוג העבודה נמחק', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      if (!confirm('למחוק את סוג העבודה?')) return;
+      await optimistic(
+        () => {
+          state.workTypes = state.workTypes.filter(x => x.workTypeId !== id);
+          showToast('סוג העבודה נמחק ✓', 'success');
+        },
+        () => callServer('deleteWorkType', id),
+        () => silentSync()
+      );
     }
 
     /* ====================================================
-       RATES
+       RATES — optimistic
     ==================================================== */
     async function loadRates() {
       try {
         const workTypeId = val('rateFilterWorkType');
-        const rates = await callServer('getRates', workTypeId || null);
-        state.rates = rates || [];
+        state.rates = await callServer('getRates', workTypeId || null) || [];
         renderRatesTable();
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      } catch (err) { showToast(getErrorMessage(err), 'error'); }
     }
 
     function renderRatesTable() {
       const tbody = document.getElementById('ratesTable');
-      if (!state.rates.length) {
+      const filtered = val('rateFilterWorkType')
+        ? state.rates.filter(r => r.workTypeId === val('rateFilterWorkType'))
+        : state.rates;
+      if (!filtered.length) {
         tbody.innerHTML = `<tr><td colspan="6" class="empty">עדיין אין תעריפים במערכת</td></tr>`;
         return;
       }
-      tbody.innerHTML = state.rates.map(rate => {
+      tbody.innerHTML = filtered.map(rate => {
         const wt = state.workTypes.find(w => w.workTypeId === rate.workTypeId);
         return `
           <tr>
@@ -1595,47 +1636,66 @@
                 <button class="btn btn-danger btn-sm" onclick="removeRate('${rate.rateId}')">מחיקה</button>
               </div>
             </td>
-          </tr>
-        `;
+          </tr>`;
       }).join('');
     }
 
     async function saveRateForm(e) {
       e.preventDefault();
-      try {
-        await callServer('saveRate', {
-          rateId:        val('rateId'),
-          workTypeId:    val('rateWorkTypeId'),
-          rateValue:     val('rateValue'),
-          effectiveFrom: val('rateEffectiveFrom'),
-          effectiveTo:   val('rateEffectiveTo'),
-          notes:         val('rateNotes')
-        });
-        resetRateForm();
-        await refreshAll();
-        openTab('rates');
-        showToast('התעריף נשמר בהצלחה', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      const payload = {
+        rateId:        val('rateId'),
+        workTypeId:    val('rateWorkTypeId'),
+        rateValue:     parseFloat(val('rateValue')) || 0,
+        effectiveFrom: val('rateEffectiveFrom'),
+        effectiveTo:   val('rateEffectiveTo'),
+        notes:         val('rateNotes')
+      };
+      const isNew  = !payload.rateId;
+      const tempId = payload.rateId || ('TEMP_' + Date.now());
+
+      await optimistic(
+        () => {
+          if (isNew) {
+            state.rates.push({ ...payload, rateId: tempId });
+          } else {
+            const i = state.rates.findIndex(x => x.rateId === payload.rateId);
+            if (i >= 0) state.rates[i] = { ...state.rates[i], ...payload };
+          }
+          // עדכן currentRate בסוגי העבודה
+          const today = new Date().toISOString().split('T')[0];
+          const wt = state.workTypes.find(x => x.workTypeId === payload.workTypeId);
+          if (wt && isDateInRange(today, payload.effectiveFrom, payload.effectiveTo)) {
+            wt.currentRate = payload.rateValue;
+          }
+          resetRateForm();
+          showToast('התעריף נשמר ✓', 'success');
+        },
+        () => callServer('saveRate', payload),
+        () => silentSync()
+      );
+      openTab('rates');
+    }
+
+    function isDateInRange(date, from, to) {
+      if (from && date < from) return false;
+      if (to   && date > to)   return false;
+      return true;
     }
 
     function editRate(rate) {
-      setVal('rateId',          rate.rateId       || '');
-      setVal('rateWorkTypeId',  rate.workTypeId    || '');
-      setVal('rateValue',       rate.rateValue     || '');
+      setVal('rateId',            rate.rateId       || '');
+      setVal('rateWorkTypeId',    rate.workTypeId    || '');
+      setVal('rateValue',         rate.rateValue     || '');
       setVal('rateEffectiveFrom', rate.effectiveFrom || '');
       setVal('rateEffectiveTo',   rate.effectiveTo   || '');
-      setVal('rateNotes',       rate.notes         || '');
+      setVal('rateNotes',         rate.notes         || '');
       openTab('rates');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function resetRateForm() {
-      setVal('rateId',       '');
-      setVal('rateValue',    '');
-      setVal('rateEffectiveTo', '');
-      setVal('rateNotes',    '');
+      setVal('rateId', ''); setVal('rateValue', '');
+      setVal('rateEffectiveTo', ''); setVal('rateNotes', '');
       const activeWts = state.workTypes.filter(x => x.active);
       if (activeWts.length) setVal('rateWorkTypeId', activeWts[0].workTypeId);
       setVal('rateEffectiveFrom', new Date().toISOString().split('T')[0]);
@@ -1643,64 +1703,68 @@
 
     function resetRateFilter() {
       setVal('rateFilterWorkType', '');
-      loadRates();
+      renderRatesTable();
     }
 
     async function removeRate(id) {
       if (!confirm('למחוק את התעריף?')) return;
-      try {
-        await callServer('deleteRate', id);
-        await refreshAll();
-        showToast('התעריף נמחק', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      await optimistic(
+        () => {
+          state.rates = state.rates.filter(x => x.rateId !== id);
+          showToast('התעריף נמחק ✓', 'success');
+        },
+        () => callServer('deleteRate', id),
+        () => silentSync()
+      );
     }
 
     /* ====================================================
-       WORK LOGS
+       WORK LOGS — optimistic
     ==================================================== */
     function toggleWorkLogInputMode() {
       const workTypeId = val('logWorkTypeId');
       const wt     = state.workTypes.find(x => x.workTypeId === workTypeId);
       const method = wt?.paymentMethod || '';
-
       document.getElementById('quantityField').classList.add('hidden');
       document.getElementById('timeField').classList.add('hidden');
       document.getElementById('fixedField').classList.add('hidden');
-
       if (method === 'unit')  document.getElementById('quantityField').classList.remove('hidden');
       if (method === 'hour')  document.getElementById('timeField').classList.remove('hidden');
       if (method === 'fixed') document.getElementById('fixedField').classList.remove('hidden');
-
       document.getElementById('workLogMethodNote').textContent = method
         ? `שיטת התשלום: ${paymentMethodLabel(method)}`
         : '';
     }
 
     async function loadWorkLogs() {
+      // loadWorkLogs with filters requires server call — but uses local state when no filters
+      const filters = {
+        employeeId: val('workLogFilterEmployee'),
+        workTypeId: val('workLogFilterWorkType'),
+        status:     val('workLogFilterStatus'),
+        dateFrom:   val('workLogDateFrom'),
+        dateTo:     val('workLogDateTo')
+      };
+      const hasFilter = Object.values(filters).some(v => v);
+      if (!hasFilter) { renderWorkLogsTable(); return; }
       try {
-        const filters = {
-          employeeId: val('workLogFilterEmployee'),
-          workTypeId: val('workLogFilterWorkType'),
-          status:     val('workLogFilterStatus'),
-          dateFrom:   val('workLogDateFrom'),
-          dateTo:     val('workLogDateTo')
-        };
-        state.logs = await callServer('getWorkLogs', filters);
-        renderWorkLogsTable();
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+        const logs = await callServer('getWorkLogs', filters);
+        // show filtered view without replacing state.logs
+        renderWorkLogsTableData(logs);
+      } catch (err) { showToast(getErrorMessage(err), 'error'); }
     }
 
     function renderWorkLogsTable() {
+      renderWorkLogsTableData(state.logs);
+    }
+
+    function renderWorkLogsTableData(logs) {
       const tbody = document.getElementById('workLogsTable');
-      if (!state.logs.length) {
+      if (!logs.length) {
         tbody.innerHTML = `<tr><td colspan="10" class="empty">אין רישומי עבודה להצגה</td></tr>`;
         return;
       }
-      tbody.innerHTML = state.logs.map(log => `
+      tbody.innerHTML = logs.map(log => `
         <tr>
           <td>${escapeHtml(log.date || '')}</td>
           <td>${escapeHtml(log.employeeName || '')}</td>
@@ -1717,27 +1781,32 @@
               <button class="btn btn-danger btn-sm" onclick="removeWorkLog('${log.logId}')">מחיקה</button>
             </div>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
 
     async function saveWorkLogForm(e) {
       e.preventDefault();
+      const payload = {
+        logId:      val('logId'),
+        date:       val('logDate'),
+        employeeId: val('logEmployeeId'),
+        workTypeId: val('logWorkTypeId'),
+        quantity:   val('logQuantity'),
+        timeHHMM:   val('logTimeHHMM'),
+        status:     val('logStatus'),
+        notes:      val('logNotes')
+      };
+      // רישומי עבודה: חישוב מחיר דורש תעריף מהשרת — מבצעים optimistic חלקי
+      // מציגים toast מיד, שולחים לשרת, ואז מסנכרנים
+      const isNew = !payload.logId;
+      showToast('שומר רישום...', 'success');
+      resetWorkLogForm();
+      openTab('worklogs');
       try {
-        await callServer('saveWorkLog', {
-          logId:      val('logId'),
-          date:       val('logDate'),
-          employeeId: val('logEmployeeId'),
-          workTypeId: val('logWorkTypeId'),
-          quantity:   val('logQuantity'),
-          timeHHMM:   val('logTimeHHMM'),
-          status:     val('logStatus'),
-          notes:      val('logNotes')
-        });
-        resetWorkLogForm();
-        await refreshAll();
-        openTab('worklogs');
-        showToast('רישום העבודה נשמר בהצלחה', 'success');
+        const saved = await callServer('saveWorkLog', payload);
+        showToast('רישום העבודה נשמר ✓', 'success');
+        // sync ברקע כדי לקבל totalAmount האמיתי
+        silentSync();
       } catch (err) {
         showToast(getErrorMessage(err), 'error');
       }
@@ -1758,28 +1827,28 @@
     }
 
     function resetWorkLogForm() {
-      setVal('logId',     '');
-      setVal('logDate',   new Date().toISOString().split('T')[0]);
+      setVal('logId', '');
+      setVal('logDate', new Date().toISOString().split('T')[0]);
       const activeEmps = state.employees.filter(x => x.active);
       if (activeEmps.length) setVal('logEmployeeId', activeEmps[0].employeeId);
       const activeWts = state.workTypes.filter(x => x.active);
       if (activeWts.length) setVal('logWorkTypeId', activeWts[0].workTypeId);
-      setVal('logQuantity', '');
-      setVal('logTimeHHMM', '');
-      setVal('logStatus',   'active');
-      setVal('logNotes',    '');
+      setVal('logQuantity', ''); setVal('logTimeHHMM', '');
+      setVal('logStatus', 'active'); setVal('logNotes', '');
       toggleWorkLogInputMode();
     }
 
     async function removeWorkLog(id) {
       if (!confirm('למחוק את רישום העבודה?')) return;
-      try {
-        await callServer('deleteWorkLog', id);
-        await refreshAll();
-        showToast('רישום העבודה נמחק', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      await optimistic(
+        () => {
+          state.logs = state.logs.filter(x => x.logId !== id);
+          rebuildDashboard();
+          showToast('רישום נמחק ✓', 'success');
+        },
+        () => callServer('deleteWorkLog', id),
+        () => silentSync()
+      );
     }
 
     function resetWorkLogFilters() {
@@ -1788,33 +1857,37 @@
       setVal('workLogFilterStatus',   '');
       setVal('workLogDateFrom',       '');
       setVal('workLogDateTo',         '');
-      loadWorkLogs();
+      renderWorkLogsTable();
     }
 
     /* ====================================================
-       PAYMENTS
+       PAYMENTS — optimistic
     ==================================================== */
     async function loadPayments() {
+      const filters = {
+        employeeId: val('paymentFilterEmployee'),
+        dateFrom:   val('paymentDateFrom'),
+        dateTo:     val('paymentDateTo')
+      };
+      const hasFilter = Object.values(filters).some(v => v);
+      if (!hasFilter) { renderPaymentsTable(); return; }
       try {
-        const filters = {
-          employeeId: val('paymentFilterEmployee'),
-          dateFrom:   val('paymentDateFrom'),
-          dateTo:     val('paymentDateTo')
-        };
-        state.payments = await callServer('getPayments', filters);
-        renderPaymentsTable();
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+        const payments = await callServer('getPayments', filters);
+        renderPaymentsTableData(payments);
+      } catch (err) { showToast(getErrorMessage(err), 'error'); }
     }
 
     function renderPaymentsTable() {
+      renderPaymentsTableData(state.payments);
+    }
+
+    function renderPaymentsTableData(payments) {
       const tbody = document.getElementById('paymentsTable');
-      if (!state.payments.length) {
+      if (!payments.length) {
         tbody.innerHTML = `<tr><td colspan="5" class="empty">אין תשלומים להצגה</td></tr>`;
         return;
       }
-      tbody.innerHTML = state.payments.map(pay => `
+      tbody.innerHTML = payments.map(pay => `
         <tr>
           <td>${escapeHtml(pay.date || '')}</td>
           <td>${escapeHtml(pay.employeeName || '')}</td>
@@ -1826,35 +1899,48 @@
               <button class="btn btn-danger btn-sm" onclick="removePayment('${pay.paymentId}')">מחיקה</button>
             </div>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
 
     async function savePaymentForm(e) {
       e.preventDefault();
-      try {
-        await callServer('savePayment', {
-          paymentId:  val('paymentId'),
-          date:       val('paymentDate'),
-          employeeId: val('paymentEmployeeId'),
-          amount:     val('paymentAmount'),
-          notes:      val('paymentNotes')
-        });
-        resetPaymentForm();
-        await refreshAll();
-        openTab('payments');
-        showToast('התשלום נשמר בהצלחה', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      const payload = {
+        paymentId:  val('paymentId'),
+        date:       val('paymentDate'),
+        employeeId: val('paymentEmployeeId'),
+        amount:     parseFloat(val('paymentAmount')) || 0,
+        notes:      val('paymentNotes')
+      };
+      if (!payload.amount) { showToast('יש להזין סכום תקין', 'error'); return; }
+
+      const isNew  = !payload.paymentId;
+      const tempId = payload.paymentId || ('TEMP_' + Date.now());
+      const emp    = state.employees.find(x => x.employeeId === payload.employeeId);
+
+      await optimistic(
+        () => {
+          if (isNew) {
+            state.payments.unshift({ ...payload, paymentId: tempId, employeeName: emp?.name || '' });
+          } else {
+            const i = state.payments.findIndex(x => x.paymentId === payload.paymentId);
+            if (i >= 0) state.payments[i] = { ...state.payments[i], ...payload };
+          }
+          rebuildDashboard();
+          resetPaymentForm();
+          openTab('payments');
+          showToast('התשלום נשמר ✓', 'success');
+        },
+        () => callServer('savePayment', payload),
+        () => silentSync()
+      );
     }
 
     function editPayment(pay) {
-      setVal('paymentId',        pay.paymentId  || '');
-      setVal('paymentDate',      pay.date       || '');
-      setVal('paymentEmployeeId',pay.employeeId || '');
-      setVal('paymentAmount',    pay.amount     || '');
-      setVal('paymentNotes',     pay.notes      || '');
+      setVal('paymentId',         pay.paymentId  || '');
+      setVal('paymentDate',       pay.date       || '');
+      setVal('paymentEmployeeId', pay.employeeId || '');
+      setVal('paymentAmount',     pay.amount     || '');
+      setVal('paymentNotes',      pay.notes      || '');
       openTab('payments');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1864,26 +1950,65 @@
       setVal('paymentDate',  new Date().toISOString().split('T')[0]);
       const activeEmps = state.employees.filter(x => x.active);
       if (activeEmps.length) setVal('paymentEmployeeId', activeEmps[0].employeeId);
-      setVal('paymentAmount', '');
-      setVal('paymentNotes',  '');
+      setVal('paymentAmount', ''); setVal('paymentNotes', '');
     }
 
     async function removePayment(id) {
       if (!confirm('למחוק את התשלום?')) return;
-      try {
-        await callServer('deletePayment', id);
-        await refreshAll();
-        showToast('התשלום נמחק', 'success');
-      } catch (err) {
-        showToast(getErrorMessage(err), 'error');
-      }
+      await optimistic(
+        () => {
+          state.payments = state.payments.filter(x => x.paymentId !== id);
+          rebuildDashboard();
+          showToast('התשלום נמחק ✓', 'success');
+        },
+        () => callServer('deletePayment', id),
+        () => silentSync()
+      );
     }
 
     function resetPaymentFilters() {
       setVal('paymentFilterEmployee', '');
       setVal('paymentDateFrom',       '');
       setVal('paymentDateTo',         '');
-      loadPayments();
+      renderPaymentsTable();
+    }
+
+    /* ====================================================
+       REBUILD DASHBOARD — מחשב מחדש מ-state מקומי
+       כדי שהדשבורד יתעדכן מיידית עם optimistic changes
+    ==================================================== */
+    function rebuildDashboard() {
+      const empMap = {};
+      state.employees.forEach(emp => {
+        empMap[emp.employeeId] = {
+          employeeId: emp.employeeId, employeeName: emp.name,
+          totalEarned: 0, totalPaid: 0, balance: 0, active: emp.active
+        };
+      });
+      state.logs.filter(l => l.status !== 'canceled').forEach(log => {
+        if (empMap[log.employeeId]) empMap[log.employeeId].totalEarned += Number(log.totalAmount || 0);
+      });
+      state.payments.forEach(pay => {
+        if (empMap[pay.employeeId]) empMap[pay.employeeId].totalPaid += Number(pay.amount || 0);
+      });
+      const byEmployee = Object.values(empMap).map(item => ({
+        ...item,
+        totalEarned: +item.totalEarned.toFixed(2),
+        totalPaid:   +item.totalPaid.toFixed(2),
+        balance:     +(item.totalEarned - item.totalPaid).toFixed(2)
+      })).sort((a,b) => b.balance - a.balance);
+
+      state.dashboard = {
+        totals: {
+          totalEarned:     +byEmployee.reduce((s,r) => s + r.totalEarned, 0).toFixed(2),
+          totalPaid:       +byEmployee.reduce((s,r) => s + r.totalPaid,   0).toFixed(2),
+          totalBalance:    +byEmployee.reduce((s,r) => s + r.balance,     0).toFixed(2),
+          activeEmployees: byEmployee.filter(e => e.active).length,
+          workLogsCount:   state.logs.filter(l => l.status !== 'canceled').length,
+          paymentsCount:   state.payments.length
+        },
+        byEmployee
+      };
     }
 
     /* ====================================================
