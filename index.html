@@ -7,8 +7,13 @@
 <style>
 body{
   font-family:Arial;
-  background:#f5f7fb;
   margin:0;
+  background:#f5f7fb;
+}
+
+.container{
+  max-width:1200px;
+  margin:auto;
   padding:20px;
 }
 
@@ -16,12 +21,29 @@ h1{
   margin-bottom:20px;
 }
 
+.tabs{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+
+.tab{
+  padding:10px 15px;
+  background:white;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.tab.active{
+  background:#2563eb;
+  color:white;
+}
+
 .card{
   background:white;
   padding:15px;
   border-radius:10px;
   margin-bottom:15px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
 
 input,select{
@@ -35,24 +57,42 @@ button{
   border:none;
   background:#2563eb;
   color:white;
-  cursor:pointer;
   border-radius:6px;
+  cursor:pointer;
 }
 
-button.danger{
-  background:#dc2626;
-}
+button.danger{background:#dc2626}
+button.gray{background:#64748b}
 
 table{
   width:100%;
   border-collapse:collapse;
-  margin-top:10px;
 }
 
 td,th{
   padding:8px;
   border-bottom:1px solid #ddd;
-  text-align:right;
+}
+
+.search{
+  margin-bottom:10px;
+}
+
+.popup{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+
+.popup-content{
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  width:300px;
 }
 
 </style>
@@ -60,47 +100,31 @@ td,th{
 
 <body>
 
+<div class="container">
+
 <h1>ניהול עובדים</h1>
 
-<div class="card">
-<h3>הוספת עובד</h3>
-<input id="name" placeholder="שם עובד">
-<button onclick="addEmployee()">שמור</button>
+<div class="tabs">
+  <div class="tab active" onclick="openTab('dashboard')">דשבורד</div>
+  <div class="tab" onclick="openTab('employees')">עובדים</div>
+  <div class="tab" onclick="openTab('work')">רישומים</div>
 </div>
 
-<div class="card">
-<h3>רשימת עובדים</h3>
-<table>
-<thead>
-<tr>
-<th>שם</th>
-<th>פעולות</th>
-</tr>
-</thead>
-<tbody id="employees"></tbody>
-</table>
-</div>
-
-<div class="card">
-<h3>הוספת רישום עבודה</h3>
-
-<select id="emp"></select>
-<select id="work"></select>
-
-<input id="qty" placeholder="כמות">
-<input id="time" placeholder="שעות:דקות">
-
-<button onclick="addLog()">שמור רישום</button>
+<div id="dashboard" class="page"></div>
+<div id="employees" class="page" style="display:none"></div>
+<div id="work" class="page" style="display:none"></div>
 
 </div>
 
-<div class="card">
-<h3>דשבורד</h3>
-<div id="dashboard"></div>
+<div class="popup" id="popup">
+  <div class="popup-content" id="popupContent"></div>
 </div>
 
 <script>
+
 const API="https://script.google.com/macros/s/AKfycbx4t__5Rrf6ChX-JJYHSmZQ_4KanN03uTBayyRvG3G0hT6texwkrVCJDPkxoGzE5vRaZg/exec";
+
+let DATA={};
 
 async function api(fn,payload={}){
   let r=await fetch(API,{
@@ -113,75 +137,169 @@ async function api(fn,payload={}){
 }
 
 async function load(){
-  let data=await api("getInitialData");
-
-  renderEmployees(data.employees);
-  renderSelects(data);
-  renderDashboard(data.dashboard);
+  DATA=await api("getInitialData");
+  renderAll();
 }
 
-function renderEmployees(list){
-  let html="";
-  list.forEach(e=>{
+function renderAll(){
+  renderDashboard();
+  renderEmployees();
+  renderWork();
+}
+
+function openTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.getElementById(name).style.display='block';
+
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* דשבורד */
+
+function renderDashboard(){
+  let html='<div class="card">';
+  html+='<h3>יתרות עובדים</h3>';
+
+  DATA.dashboard.byEmployee.forEach(e=>{
+    html+=`<div>${e.employeeName} - ${e.balance} ₪</div>`;
+  });
+
+  html+='</div>';
+
+  html+='<canvas id="chart" height="100"></canvas>';
+
+  document.getElementById("dashboard").innerHTML=html;
+
+  drawChart();
+}
+
+function drawChart(){
+  let canvas=document.getElementById("chart");
+  if(!canvas) return;
+
+  let ctx=canvas.getContext("2d");
+
+  let data=DATA.dashboard.byEmployee;
+  let max=Math.max(...data.map(x=>x.balance));
+
+  data.forEach((e,i)=>{
+    let h=(e.balance/max)*100;
+    ctx.fillRect(i*50,100-h,30,h);
+    ctx.fillText(e.employeeName,i*50,120);
+  });
+}
+
+/* עובדים */
+
+function renderEmployees(){
+  let html='<div class="card">';
+
+  html+='<button onclick="openAddEmployee()">הוסף עובד</button>';
+  html+='<input class="search" placeholder="חיפוש..." oninput="searchEmployees(this.value)">';
+
+  html+='<table><tr><th>שם</th><th></th></tr>';
+
+  DATA.employees.forEach(e=>{
     html+=`
     <tr>
       <td>${e.name}</td>
       <td>
-        <button onclick="delEmp('${e.employeeId}')" class="danger">מחק</button>
+        <button onclick="deleteEmployee('${e.employeeId}')">מחק</button>
       </td>
     </tr>`;
   });
+
+  html+='</table></div>';
+
   document.getElementById("employees").innerHTML=html;
 }
 
-function renderSelects(data){
-  let emp=document.getElementById("emp");
-  let work=document.getElementById("work");
-
-  emp.innerHTML="";
-  work.innerHTML="";
-
-  data.employees.forEach(e=>{
-    emp.innerHTML+=`<option value="${e.employeeId}">${e.name}</option>`;
-  });
-
-  data.workTypes.forEach(w=>{
-    work.innerHTML+=`<option value="${w.workTypeId}">${w.workName}</option>`;
+function searchEmployees(q){
+  let rows=document.querySelectorAll("#employees table tr");
+  rows.forEach((r,i)=>{
+    if(i==0) return;
+    r.style.display=r.innerText.includes(q)?'':'none';
   });
 }
 
-function renderDashboard(d){
-  let html="";
-  d.byEmployee.forEach(e=>{
-    html+=`<div>${e.employeeName} - ${e.balance} ₪</div>`;
-  });
-  document.getElementById("dashboard").innerHTML=html;
+function openAddEmployee(){
+  showPopup(`
+    <h3>הוספת עובד</h3>
+    <input id="empName">
+    <button onclick="saveEmployee()">שמור</button>
+  `);
 }
 
-async function addEmployee(){
-  let name=document.getElementById("name").value;
-  await api("saveEmployee",{name});
-  document.getElementById("name").value="";
+async function saveEmployee(){
+  await api("saveEmployee",{name:document.getElementById("empName").value});
+  closePopup();
   load();
 }
 
-async function delEmp(id){
+async function deleteEmployee(id){
   await api("deleteEmployee",id);
   load();
 }
 
-async function addLog(){
-  await api("saveWorkLog",{
-    employeeId:document.getElementById("emp").value,
-    workTypeId:document.getElementById("work").value,
-    quantity:document.getElementById("qty").value,
-    timeHHMM:document.getElementById("time").value
+/* רישומים */
+
+function renderWork(){
+  let html='<div class="card">';
+
+  html+='<button onclick="openAddWork()">הוסף רישום</button>';
+
+  html+='<table><tr><th>עובד</th><th>סכום</th></tr>';
+
+  DATA.logs.forEach(l=>{
+    html+=`<tr><td>${l.employeeName}</td><td>${l.totalAmount}</td></tr>`;
   });
 
+  html+='</table></div>';
+
+  document.getElementById("work").innerHTML=html;
+}
+
+function openAddWork(){
+  let empOptions=DATA.employees.map(e=>`<option value="${e.employeeId}">${e.name}</option>`).join('');
+  let workOptions=DATA.workTypes.map(w=>`<option value="${w.workTypeId}">${w.workName}</option>`).join('');
+
+  showPopup(`
+    <h3>רישום עבודה</h3>
+    <select id="emp">${empOptions}</select>
+    <select id="work">${workOptions}</select>
+    <input id="qty" placeholder="כמות">
+    <input id="time" placeholder="שעות:דקות">
+    <button onclick="saveWork()">שמור</button>
+  `);
+}
+
+async function saveWork(){
+  await api("saveWorkLog",{
+    employeeId:val("emp"),
+    workTypeId:val("work"),
+    quantity:val("qty"),
+    timeHHMM:val("time")
+  });
+  closePopup();
   load();
 }
 
+/* popup */
+
+function showPopup(html){
+  document.getElementById("popupContent").innerHTML=html;
+  document.getElementById("popup").style.display="flex";
+}
+
+function closePopup(){
+  document.getElementById("popup").style.display="none";
+}
+
+function val(id){return document.getElementById(id).value}
+
 load();
+
 </script>
 
 </body>
